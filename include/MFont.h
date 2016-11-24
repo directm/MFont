@@ -37,6 +37,9 @@ class MFont
 
         virtual ~MFont();
 
+        //set this befor load
+        void    setStyle(bool italic,bool outline);
+
         bool    load(const char* path,int fontSize
                      ,uint color=0xFFFFFFFF
                      ,MCOLORFORMAT format=M_RGB);
@@ -77,6 +80,9 @@ class MFont
         int     mHeight;
         MChar   mChars[256];
         uint    mColor;
+        bool    mBold;
+        bool    mOutline;
+        bool    mItalic;
     private:
         bool    mUsePo2;
         void    fillBitmap(const MBitMap& src,MBitMap& dst,int x,int y);
