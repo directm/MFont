@@ -2,6 +2,8 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_GLYPH_H
+#include FT_OUTLINE_H
+#include FT_STROKER_H
 
 char* readFile(const char* path,const char* mode,long& size)
 {
@@ -34,6 +36,7 @@ MFont::MFont()
     for(int i=0;i<256;++i){
             mChars[i].bm.data=0;
     }
+    mBold=mItalic=mOutline=false;
 }
 
 MFont::~MFont()
@@ -74,14 +77,39 @@ bool MFont::loadFromMemory(const unsigned char* data,long dataSize,int size,uint
     int ascent=FT_CEIL(FT_MulFix(face->ascender, scale));
     int descent=FT_CEIL(FT_MulFix(face->descender, scale));
     mHeight=ascent-descent;
+    FT_Matrix shear;
+    if(mItalic){
+        shear.xx = 1 << 16;
+        shear.xy = (int) ( 0.207f*mHeight* ( 1 << 16 ) ) / mHeight;
+        shear.yx = 0;
+        shear.yy = 1 << 16;
+    }
 
     int n=0;
    for ( n = 32; n < 128; n++ )
    {
-
      error =FT_Load_Glyph(face,FT_Get_Char_Index(face,n),FT_LOAD_DEFAULT);
+     if(mItalic)
+        FT_Outline_Transform(&slot->outline, &shear );
+    if(mOutline)
+    {
+         FT_Stroker stroker;
+         FT_Glyph bitmap_glyph;
+         FT_Get_Glyph( slot, &bitmap_glyph );
+         error = FT_Stroker_New( library, &stroker );
+         if ( error ) {
+            return false;
+         }
+         FT_Stroker_Set(stroker,1*64,FT_STROKER_LINECAP_BUTT,FT_STROKER_LINEJOIN_BEVEL, 0 );
+         FT_Glyph_Stroke(&bitmap_glyph,stroker,1);
+         FT_Stroker_Done(stroker);
+         FT_Glyph_To_Bitmap(&bitmap_glyph,ft_render_mode_normal, 0, 1 );
+         slot->bitmap=((FT_BitmapGlyph)(bitmap_glyph))->bitmap;
 
-     FT_Render_Glyph(slot,FT_RENDER_MODE_NORMAL);
+    }
+    else {
+       error=FT_Render_Glyph(slot,FT_RENDER_MODE_NORMAL);
+    }
 
      if ( error )
        continue;
@@ -356,3 +384,8 @@ void MFont::fillBitmap(const MBitMap& src,MBitMap& dst,int x,int y)
     }
 }
 
+void MFont::setStyle(bool italic,bool outline)
+{
+    mOutline=outline;
+    mItalic=italic;
+}
